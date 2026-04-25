@@ -1,0 +1,2 @@
+[console_scripts]
+mokusei-ai = mokusei_ai.cli:app

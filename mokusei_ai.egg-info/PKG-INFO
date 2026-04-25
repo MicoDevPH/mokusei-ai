@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: mokusei-ai
+Version: 0.1.0
+Summary: Mokusei AI CLI framework
+Requires-Python: >=3.10
+Requires-Dist: typer[all]
+Requires-Dist: rich
+Requires-Dist: fastapi
+Requires-Dist: uvicorn

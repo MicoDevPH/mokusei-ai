@@ -1,0 +1,21 @@
+[project]
+name = "mokusei-ai"
+version = "0.1.0"
+description = "Mokusei AI CLI framework"
+requires-python = ">=3.10"
+dependencies = [
+    "typer[all]",
+    "rich",
+    "fastapi",
+    "uvicorn"
+]
+
+[project.scripts]
+mokusei-ai = "mokusei_ai.cli:app"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mokusei_ai", "api"]
