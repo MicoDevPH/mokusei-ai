@@ -1,11 +1,10 @@
-import asyncio
 import os
+import time
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from mokusei_ai.core.logger import get_logger
-
-# Initialize environment and logger
+from mokusei_ai.core.logger import log_agent_banner, log_success, log_error, log_execution_timer
 load_dotenv()
 logger = get_logger("GANYMEDE")
 
@@ -17,34 +16,32 @@ class GanymedeAgent:
             raise ValueError("No API key found.")
 
         self.llm = ChatOpenAI(
-            model="gpt-4o-mini", 
+            model="gpt-4o-mini",
             openai_api_key=key,
             base_url="https://models.inference.ai.azure.com"
         )
         self.persona = "You are GANYMEDE, the Personal Assistant Specialist..."
+        self.version = "1.0"
 
-    async def chat(self, message: str):
+    async def chat(self, message: str) -> str:
+        start_time = time.perf_counter()
+
+        # 1. Print the banner ONCE at the start
+        log_agent_banner(logger, "Ganymede")
+        
+         # 2. Log Version
+        logger.info(f"Ganymede [bold white]{self.version}[/bold white]")
+
+        # 3. Print the receiving message (standard log)
         logger.info(f"Ganymede receiving message: {message[:30]}...")
+
         messages = [SystemMessage(content=self.persona), HumanMessage(content=message)]
+        response = await self.llm.ainvoke(messages)
+
+        # 4. Print the success line (green)
+        log_success(logger, "RESPONDED SUCCESSFULLY")
+
         
-        # LangChain's invoke is synchronous; wrap it if you want true async 
-        # or just keep it simple for now:
-        response = self.llm.invoke(messages)
+        log_execution_timer(logger, start_time)
         
-        logger.info("Ganymede successfully generated response.")
         return response.content
-
-async def main():
-    # Aesthetic Header with Logger
-    logger.info("SYSTEM START: GANYMEDE PROTOCOL")
-    agent = GanymedeAgent()
-    
-    user_input = "What is your mission objective?"
-    response = await agent.chat(user_input)
-    
-    print(f"\n[USER]: {user_input}")
-    print(f"[GANYMEDE]: {response}\n")
-    logger.info("SYSTEM SHUTDOWN: GANYMEDE PROTOCOL")
-
-if __name__ == "__main__":
-    asyncio.run(main())

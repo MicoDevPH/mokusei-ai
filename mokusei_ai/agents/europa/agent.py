@@ -1,25 +1,43 @@
+import os
+import time
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
-import os
+from mokusei_ai.core.logger import get_logger
+from mokusei_ai.core.logger import log_agent_banner, log_success, log_error
+load_dotenv()
+logger = get_logger("EUROPA")
 
 class EuropaAgent:
-    """
-    Mokusei AI: Europa Protocol
-    The 'Creative & Human Specialist' moon.
-    Designed for brainstorming, empathy, and creative writing.
-    """
     def __init__(self, api_key: str = None):
+        key = api_key or os.getenv("GITHUB_TOKEN")
+        if not key:
+            logger.error("Failed to initialize: GITHUB_TOKEN missing.")
+            raise ValueError("No API key found.")
+
         self.llm = ChatOpenAI(
             model="gpt-4o-mini",
-            openai_api_key=api_key or os.getenv("GITHUB_TOKEN"),
-            base_url="https://azure.com"
+            openai_api_key=key,
+            base_url="https://models.inference.ai.azure.com"
         )
-        self.persona = (
-            "You are EUROPA, the Creative Specialist of the Mokusei AI system. "
-            "Named after the icy moon with a hidden ocean, you are intuitive, "
-            "friendly, and imaginative. Your goal is to help users find creative "
-            "solutions and write with a warm, human tone."
-        )
+        self.persona = "You are EUROPA, the Travel Agent ..."
+        self.version = "1.0"
 
-    def chat(self, message: str):
-        return self.llm.invoke([SystemMessage(content=self.persona), HumanMessage(content=message)])
+    
+    async def chat(self, message: str) -> str:
+        # 1. Print the banner ONCE at the start
+        log_agent_banner(logger, "Europa")
+        
+        # 2. Log Version
+        logger.info(f"Europa [bold white]{self.version}[/bold white]")
+
+        # 3. Print the receiving message (standard log)
+        logger.info(f"Europa receiving message: {message[:30]}...")
+
+        messages = [SystemMessage(content=self.persona), HumanMessage(content=message)]
+        response = await self.llm.ainvoke(messages)
+
+        # 4. Print the success line (green)
+        log_success(logger, "RESPONDED SUCCESSFULLY")
+        
+        return response.content

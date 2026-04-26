@@ -1,13 +1,16 @@
 [project]
 name = "mokusei-ai"
 version = "0.1.0"
-description = "Mokusei AI CLI framework"
+description = "Mokusei AI — A multi-agent framework powered by Jupiter's moons"
 requires-python = ">=3.10"
 dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "langchain-openai",
+    "python-dotenv",
     "typer[all]",
     "rich",
-    "fastapi",
-    "uvicorn"
 ]
 
 [project.scripts]
@@ -17,5 +20,6 @@ mokusei-ai = "mokusei_ai.cli:app"
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["mokusei_ai", "api"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mokusei_ai*"]   # ✅ auto-discovers all subpackages

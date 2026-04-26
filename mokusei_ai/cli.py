@@ -3,6 +3,7 @@ import asyncio
 from rich.console import Console
 
 from mokusei_ai.agents.ganymede.agent import GanymedeAgent
+from mokusei_ai.agents.europa.agent import EuropaAgent
 from mokusei_ai.core.logger import get_logger
 
 app = typer.Typer()
@@ -31,6 +32,13 @@ def run(agent: str):
 
         console.print(f"\n[GANYMEDE]: {response}\n")
 
+    elif agent == "europa":
+        console.print("[bold pink]Launching Europa Agent...[/bold pink]")
+
+        europa = EuropaAgent()
+        response = asyncio.run(
+            europa.chat("Where do you want to go?")
+        )
     else:
         console.print(f"[red]Unknown agent:[/red] {agent}")
 
@@ -42,7 +50,8 @@ def agents():
     """
     console.print("""
 Available Mokusei AI Agents:
-- ganymede (Personal Assistant)
+- Ganymede (Personal Assistant)
+- Europa (Travel Agent)
 """)
 
 

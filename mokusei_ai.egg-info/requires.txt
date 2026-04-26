@@ -1,4 +1,7 @@
-typer[all]
-rich
 fastapi
 uvicorn
+pydantic
+langchain-openai
+python-dotenv
+typer[all]
+rich

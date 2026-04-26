@@ -53,5 +53,4 @@ echo ""
 echo -e "${J_BELT}--- RADIOWAVE STREAM ---${NC}"
 
 # --- Execution ---
-uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log --log-level info
-
+uvicorn mokusei_ai.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log --log-level info
