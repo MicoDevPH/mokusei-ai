@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from mokusei_ai.core.logger import get_logger
-from mokusei_ai.core.logger import log_agent_banner, log_success, log_error, log_execution_timer
+from mokusei_ai.core.logger import log_agent_banner, log_success, log_execution_timer
 load_dotenv()
 logger = get_logger("GANYMEDE")
 

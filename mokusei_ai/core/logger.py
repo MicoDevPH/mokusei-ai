@@ -108,6 +108,12 @@ def log_error(logger: logging.Logger, message: str):
     logger.error(f"[error]❌ {message}[/error]")
 
 
+def log_agent_action(logger: logging.Logger, agent_name: str, message: str):
+    """Log an agent action message with the agent moon color."""
+    color = MOON_COLORS.get(agent_name, "magenta")
+    logger.info(f"[agent][bold {color}]{agent_name}[/bold {color}] {message}[/agent]")
+
+
 def log_execution_timer(logger: logging.Logger, start_time: float, message: str = "RESPONDED SUCCESSFULLY"):
     """Calculates elapsed time and logs the success message with a timer."""
     duration = time.perf_counter() - start_time
@@ -122,7 +128,7 @@ if __name__ == "__main__":
     test_logger = get_logger("test")
     
     # Show the startup banner
-    log_startup_banner(test_logger)
+    log_agent_banner(test_logger, "Ganymede")
     
     # Test different log types
     log_success(test_logger, "Application started successfully")
