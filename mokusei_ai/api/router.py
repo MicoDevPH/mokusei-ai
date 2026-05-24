@@ -7,9 +7,9 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     message: str
-    api_key: str | None = None  # optional, falls back to .env
+    api_key: str | None = None
+    context: str | None = None
 
-# ✅ Cache agent instances — one per agent name, not recreated every request
 @lru_cache(maxsize=None)
 def get_cached_agent(agent_name: str, api_key: str | None = None):
     return get_agent(agent_name, api_key=api_key)
@@ -18,7 +18,7 @@ def get_cached_agent(agent_name: str, api_key: str | None = None):
 async def chat(agent_name: str, req: ChatRequest):
     try:
         agent = get_cached_agent(agent_name, req.api_key)
-        response = await agent.chat(req.message)
+        response = await agent.chat(req.message, context=req.context)
 
         return {
             "agent": agent_name,

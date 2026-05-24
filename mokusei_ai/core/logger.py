@@ -17,7 +17,6 @@ mokusei_theme = Theme({
 MOON_COLORS = {
     "Ganymede": "orange3",
     "Callisto": "brown",
-    "Europa": "magenta",
     "Io": "orange3",
     "Default": "white"
 }

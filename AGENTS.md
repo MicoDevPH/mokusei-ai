@@ -4,25 +4,24 @@ This file helps AI coding agents understand the codebase architecture and conven
 
 ## Project Overview
 
-**Mokusei AI** is a multi-agent framework where each "moon" (named after Jupiter's moons) is a specialized AI assistant with distinct personality and expertise. The system uses FastAPI for REST API, LangChain for LLM orchestration, and Azure OpenAI for model inference.
+**Mokusei AI** is an AI service backend where each "moon" (named after Jupiter's moons) is a specialized agent serving a specific project. The system uses FastAPI for REST API, LangChain for LLM orchestration, and Azure OpenAI for model inference.
 
 **Current agents:**
-- **Ganymede** — Personal Assistant Specialist (portfolio chat assistant)
-- **Europa** — Travel Agent (coming soon)
+- **Ganymede** — Personal Assistant (portfolio chat)
 
 ## Architecture Patterns
 
 ### 1. Agent Registration & Discovery
 
 All agents are registered in [`mokusei_ai/agents/registry.py`](mokusei_ai/agents/registry.py):
+
 ```python
 AGENTS = {
     "ganymede": GanymedeAgent,
-    "europa": EuropaAgent,
 }
 ```
 
-Agents are discovered by name and instantiated via `get_agent(name, api_key)`. This allows automatic API endpoint creation without modification to router code.
+Agents are discovered by name and instantiated via `get_agent(name, api_key)`. This allows automatic API endpoint creation without modification to router code. Use `get_agent_class(name)` to get the class without instantiating.
 
 ### 2. Agent Structure
 
@@ -31,38 +30,51 @@ Each agent lives in its own folder and follows this pattern:
 ```
 mokusei_ai/agents/{moon_name}/
 ├── __init__.py
-├── agent.py           # Core agent class
+├── agent.py           # Extends BaseAgent
 └── prompts/
-    ├── {moon_name}_instructions.xml   # System prompt/persona
+    ├── {moon_name}_instructions.xml   # System prompt
     └── persona.xml                     # Personality definition
 ```
 
 **Agent class requirements:**
-- Inherit or implement a base interface with `__init__(api_key)` and `async def chat(message: str) -> str`
-- Store persona/system prompt as instance variable (e.g., `self.persona`)
-- Use LangChain's `ChatOpenAI` for model interactions
-- Log via [`mokusei_ai/core/logger.py`](mokusei_ai/core/logger.py) using `get_logger(agent_name)`
-- Return response string from `chat()` method
+- Extend `BaseAgent` from [`mokusei_ai/core/base_agent.py`](mokusei_ai/core/base_agent.py)
+- Call `super().__init__(api_key)` in `__init__`
+- The base class handles: API key loading, LLM setup, prompt loading, logging, and context injection
+- Prompts are auto-loaded from XML files — no need to hardcode `self.persona`
 
 **Reference implementation:** [`mokusei_ai/agents/ganymede/agent.py`](mokusei_ai/agents/ganymede/agent.py)
 
-### 3. API Layer
+### 3. BaseAgent Class
 
-[`mokusei_ai/api/router.py`](mokusei_ai/api/router.py) provides REST endpoints for all agents:
+[`mokusei_ai/core/base_agent.py`](mokusei_ai/core/base_agent.py) provides:
+
+- **`__init__(api_key)`** — Loads env vars, initializes `ChatOpenAI`, auto-loads persona from XML prompts
+- **`_load_persona()`** — Reads `{moon}_instructions.xml` + `persona.xml` from the agent's `prompts/` folder
+- **`chat(message, context=None)`** — Sends message with optional project context injection, logs banner/timer/success
+
+```python
+class GanymedeAgent(BaseAgent):
+    def __init__(self, api_key=None):
+        super().__init__(api_key)
+```
+
+### 4. API Layer
+
+[`mokusei_ai/api/router.py`](mokusei_ai/api/router.py) provides REST endpoints:
 
 ```
 POST /api/agents/{agent_name}/chat
 Content-Type: application/json
-Body: {"message": "user query", "api_key": "optional"}
+Body: {"message": "user query", "api_key": "optional", "context": "optional"}
 ```
 
 **Key conventions:**
 - Agent instances are cached via `@lru_cache` to avoid recreating on each request
 - Requests use Pydantic `BaseModel` for validation
+- Optional `context` field injects extra data into the system prompt
 - Errors raise `HTTPException` with appropriate status codes
-- Optional `api_key` in request body falls back to env variable
 
-### 4. Logging & Theming
+### 5. Logging & Theming
 
 All agents use [`mokusei_ai/core/logger.py`](mokusei_ai/core/logger.py) for consistent, beautifully formatted logs:
 
@@ -74,7 +86,6 @@ logger.error("Error occurred")
 
 **Custom colors by moon:**
 - Ganymede: orange3
-- Europa: magenta
 - Callisto: brown
 - Io: orange3
 
@@ -88,34 +99,12 @@ logger.error("Error occurred")
 
 2. **Implement agent class** in `mokusei_ai/agents/{new_moon}/agent.py`:
    ```python
-   import os
-   from langchain_openai import ChatOpenAI
-   from langchain_core.messages import SystemMessage, HumanMessage
-   from mokusei_ai.core.logger import get_logger
+   from mokusei_ai.core.base_agent import BaseAgent
    
-   logger = get_logger("AGENT_NAME_UPPER")
    
-   class NewMoonAgent:
+   class NewMoonAgent(BaseAgent):
        def __init__(self, api_key: str = None):
-           key = api_key or os.getenv("GITHUB_TOKEN")
-           if not key:
-               raise ValueError("No API key found.")
-           
-           self.llm = ChatOpenAI(
-               model="gpt-4o-mini",
-               openai_api_key=key,
-               base_url="https://models.inference.ai.azure.com"
-           )
-           self.persona = "You are..."
-           self.version = "1.0"
-       
-       async def chat(self, message: str) -> str:
-           messages = [
-               SystemMessage(content=self.persona),
-               HumanMessage(content=message)
-           ]
-           response = await self.llm.ainvoke(messages)
-           return response.content
+           super().__init__(api_key)
    ```
 
 3. **Create prompt files** in `prompts/`:
@@ -128,53 +117,28 @@ logger.error("Error occurred")
    
    AGENTS = {
        "ganymede": GanymedeAgent,
-       "europa": EuropaAgent,
-       "{new_moon}": NewMoonAgent,  # Add here
+       "{new_moon}": NewMoonAgent,
    }
    ```
 
-5. **Done** — Agent is automatically available via API and CLI without router changes.
+5. **Done** — Agent is automatically available via API without router changes.
 
 ## Development Commands
 
 **Activate virtual environment:**
 ```bash
 source .venv/bin/activate  # macOS/Linux
-# or
 .venv\Scripts\Activate.ps1  # Windows PowerShell
 ```
 
-**Install in development mode:**
+**Install dependencies:**
 ```bash
-pip install -e .
+pip install -r requirements.txt
 ```
 
-**Install testing dependencies (if needed):**
+**Start the server:**
 ```bash
-python -m pip install pytest
-```
-
-**Run tests:**
-```bash
-python -m pytest
-```
-
-> Note: this repository does not use `uv run pytest`. Use `uvicorn` to run the server and `pytest` directly for tests.
-
-**Start FastAPI server:**
-```bash
-uvicorn mokusei_ai.main:app --reload
-```
-
-**Run agent via CLI:**
-```bash
-mokusei-ai run ganymede
-mokusei-ai run europa
-```
-
-**List available agents:**
-```bash
-mokusei-ai agents
+python -m mokusei_ai
 ```
 
 ## Key Dependencies
@@ -184,10 +148,9 @@ mokusei-ai agents
 - **LangChain** — LLM orchestration (`langchain-openai` for Azure OpenAI integration)
 - **Pydantic** — Request/response validation
 - **python-dotenv** — Environment variable loading
-- **Typer** — CLI framework
 - **Rich** — Beautiful terminal output
 
-See [`pyproject.toml`](pyproject.toml) for full list and versions.
+See [`requirements.txt`](requirements.txt) for full list.
 
 ## Environment Setup
 
@@ -196,18 +159,16 @@ Create `.env` file in project root:
 GITHUB_TOKEN=your_azure_openai_api_key
 ```
 
-The system falls back to this when no API key is provided in requests.
-
 ## File Structure Reference
 
 | File/Folder | Purpose |
-|-----------|---------|
+|---|---|
+| [`mokusei_ai/core/base_agent.py`](mokusei_ai/core/base_agent.py) | Base agent class with shared logic |
 | [`mokusei_ai/agents/registry.py`](mokusei_ai/agents/registry.py) | Central agent registration |
 | [`mokusei_ai/api/router.py`](mokusei_ai/api/router.py) | FastAPI routes for all agents |
 | [`mokusei_ai/core/logger.py`](mokusei_ai/core/logger.py) | Logging utilities with Rich theme |
 | [`mokusei_ai/main.py`](mokusei_ai/main.py) | FastAPI app initialization |
-| [`mokusei_ai/cli.py`](mokusei_ai/cli.py) | CLI commands (Typer) |
-| [`pyproject.toml`](pyproject.toml) | Project metadata & dependencies |
+| [`requirements.txt`](requirements.txt) | Python dependencies |
 
 ## Common Development Tasks
 
@@ -218,11 +179,18 @@ curl -X POST http://localhost:8000/api/agents/ganymede/chat \
   -d '{"message": "Hello Ganymede"}'
 ```
 
+**Passing project context:**
+```bash
+curl -X POST http://localhost:8000/api/agents/ganymede/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Tell me about yourself", "context": "The owner is a full-stack developer"}'
+```
+
 **Adding a new LLM model:**
-Modify `self.llm` instantiation in agent class — currently uses `gpt-4o-mini` via Azure OpenAI.
+Override `self.llm` in the agent's `__init__` after calling `super().__init__()`.
 
 **Changing agent behavior:**
-Update `self.persona` string in agent class to modify system prompt without code logic changes.
+Edit the XML prompt files — no code changes needed since `BaseAgent._load_persona()` reads them at runtime.
 
 ## Design Principles
 
