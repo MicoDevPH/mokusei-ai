@@ -39,7 +39,7 @@ mokusei_ai/agents/{moon_name}/
 **Agent class requirements:**
 - Extend `BaseAgent` from [`mokusei_ai/core/base_agent.py`](mokusei_ai/core/base_agent.py)
 - Call `super().__init__(api_key)` in `__init__`
-- The base class handles: API key loading, LLM setup, prompt loading, logging, and context injection
+- The base class handles: API key loading and validation, LLM setup, prompt loading, logging, and context injection
 - Prompts are auto-loaded from XML files — no need to hardcode `self.persona`
 
 **Reference implementation:** [`mokusei_ai/agents/ganymede/agent.py`](mokusei_ai/agents/ganymede/agent.py)
@@ -65,7 +65,7 @@ class GanymedeAgent(BaseAgent):
 ```
 POST /api/agents/{agent_name}/chat
 Content-Type: application/json
-Body: {"message": "user query", "api_key": "optional", "context": "optional", "portfolio": "optional"}
+Body: {"message": "user query", "api_key": "required (if configured on server)", "context": "optional", "portfolio": "optional"}
 ```
 
 **Key conventions:**
@@ -275,21 +275,21 @@ async function sendMessage(message) {
 ```bash
 curl -X POST http://localhost:8000/api/agents/ganymede/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "Hello Ganymede"}'
+  -d '{"message": "Hello Ganymede", "api_key": "your_secret_key"}'
 ```
 
 **Passing project context:**
 ```bash
 curl -X POST http://localhost:8000/api/agents/ganymede/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "Tell me about yourself", "context": "The owner is a full-stack developer"}'
+  -d '{"message": "Tell me about yourself", "api_key": "your_secret_key", "context": "The owner is a full-stack developer"}'
 ```
 
 **Passing portfolio data:**
 ```bash
 curl -X POST http://localhost:8000/api/agents/ganymede/chat \
   -H "Content-Type: application/json" \
-  -d '{"message": "Tell me about yourself", "portfolio": "## Profile\nName: Alice\nRole: Designer\n..."}'
+  -d '{"message": "Tell me about yourself", "api_key": "your_secret_key", "portfolio": "## Profile\nName: Alice\nRole: Designer\n..."}'
 ```
 
 **Adding a new LLM model:**
