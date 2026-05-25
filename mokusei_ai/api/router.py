@@ -9,6 +9,7 @@ class ChatRequest(BaseModel):
     message: str
     api_key: str | None = None
     context: str | None = None
+    portfolio: str | None = None
 
 @lru_cache(maxsize=None)
 def get_cached_agent(agent_name: str, api_key: str | None = None):
@@ -18,12 +19,14 @@ def get_cached_agent(agent_name: str, api_key: str | None = None):
 async def chat(agent_name: str, req: ChatRequest):
     try:
         agent = get_cached_agent(agent_name, req.api_key)
-        response = await agent.chat(req.message, context=req.context)
+        response = await agent.chat(req.message, context=req.context, portfolio=req.portfolio)
 
         return {
             "agent": agent_name,
             "response": response
         }
 
+    except PermissionError as e:
+        raise HTTPException(status_code=401, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

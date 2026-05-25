@@ -48,9 +48,9 @@ mokusei_ai/agents/{moon_name}/
 
 [`mokusei_ai/core/base_agent.py`](mokusei_ai/core/base_agent.py) provides:
 
-- **`__init__(api_key)`** — Loads env vars, initializes `ChatOpenAI`, auto-loads persona from XML prompts
+- **`__init__(api_key)`** — Loads env vars, validates `api_key` against `{AGENT}_API_KEY` env var, initializes `ChatOpenAI`, auto-loads persona from XML prompts
 - **`_load_persona()`** — Reads `{moon}_instructions.xml` + `persona.xml` from the agent's `prompts/` folder
-- **`chat(message, context=None)`** — Sends message with optional project context injection, logs banner/timer/success
+- **`chat(message, context=None, portfolio=None)`** — Sends message with optional conversation history (`context`) and user portfolio data (`portfolio`), logs banner/timer/success
 
 ```python
 class GanymedeAgent(BaseAgent):
@@ -65,13 +65,14 @@ class GanymedeAgent(BaseAgent):
 ```
 POST /api/agents/{agent_name}/chat
 Content-Type: application/json
-Body: {"message": "user query", "api_key": "optional", "context": "optional"}
+Body: {"message": "user query", "api_key": "optional", "context": "optional", "portfolio": "optional"}
 ```
 
 **Key conventions:**
 - Agent instances are cached via `@lru_cache` to avoid recreating on each request
 - Requests use Pydantic `BaseModel` for validation
-- Optional `context` field injects extra data into the system prompt
+- Optional `context` field injects conversation history into the system prompt
+- Optional `portfolio` field injects the user's portfolio data (content from `.mokusei/ganymede_context.md`)
 - Errors raise `HTTPException` with appropriate status codes
 
 ### 5. Logging & Theming
@@ -156,8 +157,11 @@ See [`requirements.txt`](requirements.txt) for full list.
 
 Create `.env` file in project root:
 ```
-GITHUB_TOKEN=your_azure_openai_api_key
+GITHUB_TOKEN=your_github_token
+GANYMEDE_API_KEY=your_secret_key
 ```
+
+Each agent has its own API key via `{AGENT_NAME}_API_KEY`. Clients must send this key as `api_key` in requests. If no `{AGENT_NAME}_API_KEY` is set, the agent accepts any key (dev mode).
 
 ## File Structure Reference
 
@@ -169,6 +173,101 @@ GITHUB_TOKEN=your_azure_openai_api_key
 | [`mokusei_ai/core/logger.py`](mokusei_ai/core/logger.py) | Logging utilities with Rich theme |
 | [`mokusei_ai/main.py`](mokusei_ai/main.py) | FastAPI app initialization |
 | [`requirements.txt`](requirements.txt) | Python dependencies |
+
+## Frontend Integration
+
+Add a Ganymede chat widget to your portfolio site in three steps.
+
+### 1. Create `.mokusei/ganymede_context.md`
+
+In your frontend project root, create a file with your portfolio info:
+
+```markdown
+# Ganymede Context
+
+## Profile
+- Name: Your Name
+- Role: Your Role
+- Location: Your Location
+- About: Short bio
+
+## Projects
+### Project Name
+- Description: What it does
+- Tech Stack: Languages/frameworks used
+- Link: URL (optional)
+
+## Skills
+- Frontend: HTML, CSS, React, etc.
+- Backend: Node.js, Python, etc.
+- Tools: Git, Docker, etc.
+
+## Education
+- School: University name
+- Degree: Your degree
+- Year: Graduation year
+
+## Contact
+- GitHub: your-username
+- LinkedIn: your-profile
+- Email: your@email.com
+```
+
+### 2. Set your API key
+
+Add your Mokusei AI API key to your frontend environment:
+
+```bash
+# .env (Vite)
+VITE_MOKUSEI_API_KEY=sk_xxx
+
+# .env (Create React App)
+REACT_APP_MOKUSEI_API_KEY=sk_xxx
+
+# .env (Next.js)
+NEXT_PUBLIC_MOKUSEI_API_KEY=sk_xxx
+```
+
+### 3. Wire up the chat widget
+
+**Build-time import** — for Vite, Next.js, or any bundler that supports raw imports:
+
+```js
+// React example
+import portfolio from '../.mokusei/ganymede_context.md?raw'
+
+async function sendMessage(message) {
+  const res = await fetch('https://your-api.com/api/agents/ganymede/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      api_key: import.meta.env.VITE_MOKUSEI_API_KEY,
+      message,
+      portfolio
+    })
+  })
+  return res.json()
+}
+```
+
+**Runtime fetch** — for vanilla JS or script-based widgets:
+
+```js
+async function sendMessage(message) {
+  const portfolio = await fetch('/.mokusei/ganymede_context.md').then(r => r.text())
+
+  const res = await fetch('https://your-api.com/api/agents/ganymede/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      api_key: window.ENV.MOKUSEI_API_KEY,
+      message,
+      portfolio
+    })
+  })
+  return res.json()
+}
+```
 
 ## Common Development Tasks
 
@@ -184,6 +283,13 @@ curl -X POST http://localhost:8000/api/agents/ganymede/chat \
 curl -X POST http://localhost:8000/api/agents/ganymede/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Tell me about yourself", "context": "The owner is a full-stack developer"}'
+```
+
+**Passing portfolio data:**
+```bash
+curl -X POST http://localhost:8000/api/agents/ganymede/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Tell me about yourself", "portfolio": "## Profile\nName: Alice\nRole: Designer\n..."}'
 ```
 
 **Adding a new LLM model:**

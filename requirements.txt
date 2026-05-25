@@ -4,4 +4,3 @@ pydantic
 langchain-openai
 python-dotenv
 rich
-httpx

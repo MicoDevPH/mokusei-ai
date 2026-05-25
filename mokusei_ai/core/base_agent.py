@@ -3,7 +3,6 @@ import time
 import inspect
 from pathlib import Path
 from dotenv import load_dotenv
-import httpx
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from mokusei_ai.core.logger import get_logger, log_agent_banner, log_success, log_execution_timer
@@ -16,10 +15,19 @@ class BaseAgent:
         self.agent_name = agent_name or self.__class__.__name__.replace("Agent", "")
         self.logger = get_logger(self.agent_name.upper())
 
-        key = api_key or os.getenv("GITHUB_TOKEN")
+        # Validate per-agent API key
+        expected = os.getenv(f"{self.agent_name.upper()}_API_KEY")
+        if expected:
+            if not api_key:
+                raise PermissionError(f"API key required for '{self.agent_name}'.")
+            if api_key != expected:
+                raise PermissionError(f"Invalid API key for '{self.agent_name}'.")
+
+        # Use server's own key for LLM calls
+        key = os.getenv("GITHUB_TOKEN")
         if not key:
             self.logger.error("Failed to initialize: GITHUB_TOKEN missing.")
-            raise ValueError("No API key found.")
+            raise ValueError("Server misconfigured: GITHUB_TOKEN missing.")
 
         self.version = "1.0"
         self.llm = ChatOpenAI(
@@ -28,7 +36,6 @@ class BaseAgent:
             base_url="https://models.inference.ai.azure.com"
         )
         self.persona = self._load_persona()
-        self.portfolio_context = self._load_portfolio_context()
 
     def _load_persona(self) -> str:
         module_path = inspect.getfile(self.__class__)
@@ -45,20 +52,7 @@ class BaseAgent:
 
         return "\n\n".join(parts) if parts else f"You are {self.agent_name}, an AI assistant."
 
-    def _load_portfolio_context(self) -> str | None:
-        url = os.getenv("GANYMEDE_CONTEXT_URL")
-        if not url:
-            return None
-        try:
-            response = httpx.get(url, timeout=10)
-            response.raise_for_status()
-            self.logger.info(f"Fetched portfolio context from {url}")
-            return response.text
-        except Exception as e:
-            self.logger.warning(f"Failed to fetch portfolio context from {url}: {e}")
-            return None
-
-    async def chat(self, message: str, context: str = None) -> str:
+    async def chat(self, message: str, context: str = None, portfolio: str = None) -> str:
         start_time = time.perf_counter()
 
         log_agent_banner(self.logger, self.agent_name)
@@ -66,8 +60,8 @@ class BaseAgent:
         self.logger.info(f"{self.agent_name} receiving message: {message[:50]}...")
 
         system_content = self.persona
-        if self.portfolio_context:
-            system_content += f"\n\n## Portfolio Context\n{self.portfolio_context}"
+        if portfolio:
+            system_content += f"\n\n## Portfolio Context\n{portfolio}"
         if context:
             system_content += f"\n\n## Conversation History\n{context}"
 
