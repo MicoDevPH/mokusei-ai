@@ -10,6 +10,7 @@ class ChatRequest(BaseModel):
     api_key: str | None = None
     context: str | None = None
     portfolio: str | None = None
+    summary: str | None = None
 
 @lru_cache(maxsize=None)
 def get_cached_agent(agent_name: str, api_key: str | None = None):
@@ -19,7 +20,7 @@ def get_cached_agent(agent_name: str, api_key: str | None = None):
 async def chat(agent_name: str, req: ChatRequest):
     try:
         agent = get_cached_agent(agent_name, req.api_key)
-        response = await agent.chat(req.message, context=req.context, portfolio=req.portfolio)
+        response = await agent.chat(req.message, context=req.context, portfolio=req.portfolio, summary=req.summary)
 
         return {
             "agent": agent_name,

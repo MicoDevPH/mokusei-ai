@@ -1,0 +1,20 @@
+[project]
+name = "mokusei-ai"
+version = "1.2.0"
+description = "AI service backend with specialized agents (moons)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "langchain-openai",
+    "python-dotenv",
+    "rich",
+]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["mokusei_ai*"]
